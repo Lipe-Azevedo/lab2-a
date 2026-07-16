@@ -65,3 +65,5 @@ simultaneamente por múltiplos processos. Sem exclusão mútua no próprio cadas
 dois threads adquirem faturas idênticas. A própria lógica englobada no laço while 
 inferior não oferece desempates imunes a concorrência nesses cenários de tickets 
 colididos.
+
+https://github.com/giovannifs/fpc/blob/master/prepa/PC-elixir.pdf
