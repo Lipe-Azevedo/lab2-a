@@ -1,0 +1,49 @@
+int in = 0
+int out = 0
+int count = 0
+
+procedure produzir(item)
+    lock.lock()
+    while (count == N) {
+        cond.wait()
+    }
+    buffer[in] = item
+    in = (in + 1) mod N
+    count = count + 1
+    cond.notifyAll()
+    lock.unlock()
+
+procedure consumir()
+    lock.lock()
+    while (count == 0) {
+        cond.wait()
+    }
+    item = buffer[out]
+    out = (out + 1) mod N
+    count = count - 1
+    cond.notifyAll()
+    lock.unlock()
+    return item
+
+
+
+```
+### Questões 2 e 3: Algoritmos de Exclusão Mútua
+#### Questão 2: Princípios de Funcionamento
+**Algoritmo 1:**
+ * **Declaração de Intenção:** A thread declara sua intenção de entrar na região crítica ajustando sua posição no vetor intents[id] para true.
+ * **Prioridade:** A prioridade é definida estritamente pelo identificador da thread (id). Threads com IDs menores possuem prioridade mais alta.
+ * **Protocolo de Entrada (Lock):** Antes de confirmar sua intenção, a thread verifica se alguma thread de maior prioridade (ID menor) já tem intenção. Se sim, ela recomeça o processo (salto para L0). Após setar sua intenção para true, ela faz uma segunda checagem; se houver conflito, desfaz e recomeça. Passando por isso, ela entra em um *spin lock* (salto para L1) aguardando que threads de menor prioridade (ID maior) terminem suas execuções caso já estejam na região crítica.
+ * **Protocolo de Saída (Unlock):** A intenção da thread é revogada definindo intents[id] = false.
+**Algoritmo 2:**
+ * **Declaração de Intenção:** A thread imediatamente declara intenção ao entrar no método com intents[id] = true no marcador L.
+ * **Prioridade:** Assim como no primeiro algoritmo, a prioridade é dada pelo menor id.
+ * **Protocolo de Entrada (Lock):** A thread verifica se alguma thread de prioridade maior (ID menor) declarou intenção. Caso afirmativo, ela é obrigada a ceder a vez: desmarca sua própria intenção (false), aguarda em *busy wait* (while) até a outra thread terminar, e então recomeça o ciclo voltando para L. Em seguida, faz um *spin lock* esperando a liberação de threads de menor prioridade que possam já estar executando.
+ * **Protocolo de Saída (Unlock):** A intenção é revogada definindo intents[id] = false.
+                                                                                                                                                                                                                                       
+                                                                                                                                                                                                                                       
+#### Questão 3: Avaliação de Segurança e Progresso
+**Algoritmo 1 (Problema de Progresso):**
+Este algoritmo apresenta uma falha crítica de progresso conhecida como **livelock**. Se múltiplas threads tentarem acessar a região crítica simultaneamente, elas podem entrar em um ciclo infinito de recomeços. Por exemplo, se lerem o estado umas das outras e encontrarem conflitos iterando no loop for, invalidarão os próprios bits, reiniciarão o salto via goto L0, e repetirão esse comportamento ciclicamente sem que nenhuma consiga de fato entrar na região crítica.
+**Algoritmo 2 (Problema de Segurança):**
+Este algoritmo possui uma quebra severa na garantia de **exclusão mútua** (segurança). O problema reside nas condições de corrida (*race conditions*) durante a intercalação de instruções. A verificação baseada no vetor de intenções não é atômica. Duas threads podem passar simultaneamente pela declaração e leitura inicial antes que o estado de uma seja visível para a outra no nível do processador. Isso possibilita que ambas passem pelos laços de checagem e adentrem juntas a região crítica, gerando concorrência destrutiva.
