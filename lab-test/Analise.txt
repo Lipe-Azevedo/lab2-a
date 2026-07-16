@@ -1,0 +1,67 @@
+- Análise de Algoritmos de Exclusão Mútua (Explicações)
+
+-- LockOne & LockTwo:
+
+--- LockOne: Possui uma falha crítica de progresso conhecida como livelock (ou 
+deadlock na abstração lógica). Se as duas threads declararem interesse assinalando 
+suas flags (true) de maneira estritamente intercalada, ambas validarão o laco 
+infinito da espera simultaneamente. Elas ficarão retidas infinitamente no processo 
+sem que ninguém ceda o caminho.
+
+
+--- LockTwo: Sua falha de progresso reside no extremo oposto, a falta de contenção.
+Como a estrutura demanda forçadamente que a permissão mude (um repasse de turno 
+mecânico da "vítima"), uma thread em isolamento mudará a condição e travará o 
+próprio processamento esperando a validação fantasma de uma segunda thread 
+inexistente.
+
+
+
+-- Peterson:
+
+--- Peterson consolida ambos corrigindo e bloqueando as duas falhas estruturais 
+acima. A flag de requisição barra as quebras de segurança (uma thread bloqueia a 
+tentativa invasiva da outra). Em paridade, o uso suplementar do delegador victim 
+rompe qualquer livelock, atuando como elemento ativo de desempate forçado em casos
+onde ambas queiram entrar.
+
+
+
+-- Locks:
+
+--- Primeiro Algoritmo (goto LO): Falha no critério de progresso por apresentar 
+risco de livelock. Diferentes fluxos podem ligar o bit no array intents, encontrar
+um conflito iterando no loop for, invalidar o próprio bit reiniciando o salto via
+goto LO e refazer isso num ciclo sem fim.
+
+--- Segundo Algoritmo (goto L com while): Falha grotescamente na segurança e 
+garantia de exclusão mútua. Basear-se estritamente na comparação vetorial do 
+índice falha sob intercalação de comandos (race conditions), possibilitando que 
+requisições passem pelos ciclos e entrem juntas na área de exclusividade, gerando 
+concorrência destrutiva na região crítica.
+
+
+
+
+-- TTAS Lock:
+
+--- As travas TTAS (Test and Test-and-Set) melhoram o desempenho em nível de 
+arquitetura ao respeitar os mecanismos de coerência de cache. No TAS puro, a 
+constante batida de escrita atômica destrói linhas inteiras de memória forçando 
+recargas no barramento (bus traffic) em todos os processadores. O TTAS anula isso 
+usando um laço superficial de leitura local (Test) nos caches de L1/L2, acionando 
+a instrução pesada (Test-and-Set) apenas nas raras janelas em que uma liberação 
+genuína for notada no hardware.
+
+
+
+
+-- BrokenBakery:
+
+--- Há interrupções diretas de segurança e progresso, provindas da falta de 
+atomicidade e linearização na aquisição das "fichas". Os laços em 
+ticket[id] = ticket[j]; e a atribuição isolada ticket[id]++ podem ser lidos 
+simultaneamente por múltiplos processos. Sem exclusão mútua no próprio cadastro, 
+dois threads adquirem faturas idênticas. A própria lógica englobada no laço while 
+inferior não oferece desempates imunes a concorrência nesses cenários de tickets 
+colididos.

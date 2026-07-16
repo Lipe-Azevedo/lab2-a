@@ -1,0 +1,60 @@
+import java.util.concurrent.Semaphore;
+
+class Request {
+    int type;
+}
+
+public class BlockingRateLimiting {
+    static int activeType = -1;
+    static int activeCount = 0;
+    static int[] waiting = {0, 0};
+    static int N;
+
+    static Semaphore mutex = new Semaphore(1);
+    static Semaphore[] semType = {new Semaphore(0), new Semaphore(0)};
+
+    public static void initRateLimiting(int maxN) {
+        N = maxN;
+    }
+
+    public static void exec(Request req) {}
+
+    public static void handle(Request req) {
+        try {
+            mutex.acquire();
+            if ((activeType != -1 && activeType != req.type) || activeCount == N) {
+                waiting[req.type]++;
+                mutex.release();
+                semType[req.type].acquire();
+                mutex.acquire();
+                waiting[req.type]--;
+            }
+            
+            activeType = req.type;
+            activeCount++;
+            mutex.release();
+
+            exec(req);
+
+            mutex.acquire();
+            activeCount--;
+            if (activeCount == 0) {
+                int other = 1 - activeType;
+                if (waiting[other] > 0) {
+                    activeType = other;
+                    int wake = Math.min(waiting[other], N);
+                    for (int i = 0; i < wake; i++) semType[other].release();
+                } else if (waiting[activeType] > 0) {
+                    semType[activeType].release();
+                } else {
+                    activeType = -1;
+                }
+            } else if (activeCount < N && waiting[activeType] > 0) {
+                semType[activeType].release();
+            }
+            mutex.release();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+}

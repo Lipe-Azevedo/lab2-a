@@ -1,0 +1,98 @@
+class Node {
+    int value;
+    Node left;
+    Node right;
+
+    public Node(int value) {
+        this.value = value;
+        this.left = null;
+        this.right = null;
+    }
+}
+
+public class BinarySearchTree {
+    private Node root;
+    private int readers;
+    private boolean writing;
+
+    public BinarySearchTree() {
+        this.root = null;
+        this.readers = 0;
+        this.writing = false;
+    }
+
+    public synchronized void insert(int valueToInsert) {
+        try {
+            while (writing || readers > 0) {
+                wait();
+            }
+            writing = true;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return;
+        }
+
+        Node curr = root;
+        Node parent = null;
+        
+        while (curr != null) {
+            parent = curr;
+            if (valueToInsert < curr.value) {
+                curr = curr.left;
+            } else if (valueToInsert > curr.value) {
+                curr = curr.right;
+            } else {
+                break;
+            }
+        }
+        
+        if (curr == null) {
+            if (parent == null) {
+                root = new Node(valueToInsert);
+            } else if (valueToInsert < parent.value) {
+                parent.left = new Node(valueToInsert);
+            } else {
+                parent.right = new Node(valueToInsert);
+            }
+        }
+
+        writing = false;
+        notifyAll();
+    }
+
+    public boolean search(int valueToSearch) {
+        synchronized (this) {
+            try {
+                while (writing) {
+                    wait();
+                }
+                readers++;
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return false;
+            }
+        }
+
+        Node curr = root;
+        boolean found = false;
+        while (curr != null) {
+            if (valueToSearch == curr.value) {
+                found = true;
+                break;
+            } else if (valueToSearch < curr.value) {
+                curr = curr.left;
+            } else {
+                curr = curr.right;
+            }
+        }
+
+        synchronized (this) {
+            readers--;
+            if (readers == 0) {
+                notifyAll();
+            }
+        }
+
+        return found;
+    }
+}

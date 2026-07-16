@@ -1,0 +1,63 @@
+import java.util.Random;
+import java.util.concurrent.Semaphore;
+
+public class TwoPhaseSleep {
+    static int n;
+    static int[] sValues;
+    static int count = 0;
+    static Semaphore mutex = new Semaphore(1);
+    static Semaphore barrier = new Semaphore(0);
+
+    static class PhaseTask implements Runnable {
+        int id;
+
+        public PhaseTask(int id) {
+            this.id = id;
+        }
+
+        public void run() {
+            try {
+                Random rand = new Random();
+                Thread.sleep(rand.nextInt(6) * 1000);
+                sValues[id] = rand.nextInt(11);
+
+                mutex.acquire();
+                count++;
+                if (count == n) {
+                    for (int i = 0; i < n; i++) {
+                        barrier.release();
+                    }
+                }
+                mutex.release();
+
+                barrier.acquire();
+
+                int prev = (id == 0) ? (n - 1) : (id - 1);
+                Thread.sleep(sValues[prev] * 1000);
+
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
+    }
+
+    public static void main(String[] args) {
+        if (args.length != 1) return;
+        n = Integer.parseInt(args[0]);
+        sValues = new int[n];
+
+        Thread[] threads = new Thread[n];
+        for (int i = 0; i < n; i++) {
+            threads[i] = new Thread(new PhaseTask(i));
+            threads[i].start();
+        }
+
+        for (int i = 0; i < n; i++) {
+            try {
+                threads[i].join();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
+    }
+}

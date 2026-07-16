@@ -1,0 +1,76 @@
+import java.util.concurrent.Semaphore;
+
+public class CategoricalExclusion {
+    static final int N = 100;
+    static int activePost = 0;
+    static int activeGet = 0;
+    static int waitingPost = 0;
+    static int waitingGet = 0;
+
+    static Semaphore mutex = new Semaphore(1);
+    static Semaphore semPost = new Semaphore(0);
+    static Semaphore semGet = new Semaphore(0);
+
+    static void doPost() {}
+    static void doGet() {}
+
+    public static void handlePost() {
+        try {
+            mutex.acquire();
+            if (activeGet > 0 || activePost == N) {
+                waitingPost++;
+                mutex.release();
+                semPost.acquire();
+                mutex.acquire();
+                waitingPost--;
+            }
+            activePost++;
+            mutex.release();
+
+            doPost();
+
+            mutex.acquire();
+            activePost--;
+            if (activePost == 0 && waitingGet > 0) {
+                int wake = Math.min(waitingGet, N);
+                for (int i = 0; i < wake; i++) semGet.release();
+            } else if (activePost < N && waitingPost > 0) {
+                semPost.release();
+            }
+            mutex.release();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    public static void handleGet() {
+        try {
+            mutex.acquire();
+            if (activePost > 0 || activeGet == N) {
+                waitingGet++;
+                mutex.release();
+                semGet.acquire();
+                mutex.acquire();
+                waitingGet--;
+            }
+            activeGet++;
+            mutex.release();
+
+            doGet();
+
+            mutex.acquire();
+            activeGet--;
+            if (activeGet == 0 && waitingPost > 0) {
+                int wake = Math.min(waitingPost, N);
+                for (int i = 0; i < wake; i++) semPost.release();
+            } else if (activeGet < N && waitingGet > 0) {
+                semGet.release();
+            }
+            mutex.release();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    public static void main(String[] args) {}
+}

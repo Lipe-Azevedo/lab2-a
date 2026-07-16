@@ -1,0 +1,56 @@
+import java.util.concurrent.Semaphore;
+
+public class AdmissionControl {
+    static final int K = 10;
+    static int activeRequests = 0;
+    static Semaphore mutex = new Semaphore(1);
+    static Semaphore semSystem = new Semaphore(0);
+    static Semaphore semEncrypt = new Semaphore(1);
+    static Semaphore semKeyReady = new Semaphore(0);
+
+    static void poison() { Thread.currentThread().stop(); }
+    static void encrypt() {}
+    static void generateKey() {}
+
+    public static void runReq() {
+        try {
+            mutex.acquire();
+            if (activeRequests >= K) {
+                mutex.release();
+                poison();
+            }
+            activeRequests++;
+            if (activeRequests == 1) semSystem.release();
+            mutex.release();
+
+            semEncrypt.acquire();
+            
+            semKeyReady.acquire();
+            encrypt();
+            semEncrypt.release();
+
+            mutex.acquire();
+            activeRequests--;
+            mutex.release();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    public static void handle() {
+        for(;;) {
+            try {
+                semSystem.acquire();
+                
+                mutex.acquire();
+                if (activeRequests > 0) semSystem.release();
+                mutex.release();
+
+                generateKey();
+                semKeyReady.release();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
+    }
+}
